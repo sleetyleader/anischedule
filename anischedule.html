@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Airing Anime Carousel</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: #121212;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .bg-blur {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-position: center;
+      background-size: cover;
+      background-repeat: no-repeat;
+      filter: blur(20px) brightness(0.8);
+      z-index: -1;
+      transition: background-image 1s ease-in-out;
+    }
+
+    .carousel-container {
+      width: 100vw;
+      max-width: 5000px;
+      min-height: 460px;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .carousel-track {
+      display: flex;
+      transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform;
+    }
+
+.carousel-item {
+  flex: 0 0 280px;
+  margin: 0 10px;
+  background: #222;
+  border-radius: 10px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.7);
+  color: #eee;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.5s ease, opacity 0.5s ease;
+  opacity: 0.6;
+  transform: scale(0.85);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  height: fit-content;
+}
+
+
+    }
+
+    .carousel-item.center {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .carousel-item img {
+      width: 100%;
+      display: block;
+      margin-bottom: 12px;
+    }
+
+    .title {
+      font-weight: 700;
+      margin-bottom: 10px;
+      font-size: 25px;
+      white-space: normal;
+      word-wrap: break-word;
+    }
+
+   .info {
+  font-size: 15px;
+  line-height: 1.4;
+  color: #ccc;
+  margin: 0;
+  padding: 0;
+  flex-grow: 0;
+}
+
+    }
+
+    .info strong {
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Blurred Background -->
+  <div id="bg-blur" class="bg-blur"></div>
+
+  <!-- Carousel -->
+  <div class="carousel-container" aria-label="Airing Anime Carousel">
+    <div id="carouselTrack" class="carousel-track" role="list"></div>
+  </div>
+
+  <script>
+    const track = document.getElementById('carouselTrack');
+    let airingAnime = [];
+    let currentIndex = 0;
+
+    const ITEM_WIDTH = 280 + 24;
+    const VISIBLE_ITEMS = 3;
+
+    async function fetchAiringAnime() {
+      const url = 'https://api.jikan.moe/v4/seasons/now?unapproved/pg13/r17/r';
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        return data.data;
+      } catch (err) {
+        console.error('Failed fetching airing anime:', err);
+        return [];
+      }
+    }
+
+    function createCarouselItem(anime, isCenter) {
+      const div = document.createElement('div');
+      div.classList.add('carousel-item');
+      if (isCenter) div.classList.add('center');
+      div.setAttribute('role', 'listitem');
+
+      const broadcast = anime.broadcast?.string || 'Unknown airing time';
+
+      div.innerHTML = `
+        <img src="${anime.images.jpg.image_url}" alt="Cover of ${anime.title}" loading="lazy" />
+        <div class="title">${anime.title}</div>
+        <div class="info">
+          <strong>Episodes:</strong> ${anime.episodes ?? 'Unknown'}<br />
+          <strong>Duration:</strong> ${anime.duration ?? 'Unknown'}<br />
+          <strong>Score:</strong> ${anime.score ?? 'N/A'}<br />
+          <strong>Airing:</strong> ${broadcast}
+        </div>
+      `;
+      return div;
+    }
+
+function renderCarousel() {
+  track.innerHTML = '';
+  const len = airingAnime.length;
+
+  const extended = [
+    ...airingAnime.slice(len - VISIBLE_ITEMS),
+    ...airingAnime,
+    ...airingAnime.slice(0, VISIBLE_ITEMS)
+  ];
+
+  extended.forEach((anime, idx) => {
+    const isCenter = idx === currentIndex + VISIBLE_ITEMS;
+    const realIndex = (idx - VISIBLE_ITEMS + len) % len;
+    const item = createCarouselItem(anime, isCenter);
+    item.dataset.index = realIndex;
+    item.addEventListener('click', () => {
+      if (realIndex !== currentIndex) {
+        currentIndex = realIndex;
+        updatePosition();
+        updateCenterClasses();
+      }
+    });
+    track.appendChild(item);
+  });
+
+  updatePosition(false);
+}
+    function updatePosition(animate = true) {
+      if (!animate) track.style.transition = 'none';
+      else track.style.transition = 'transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)';
+
+      const containerWidth = document.querySelector('.carousel-container').clientWidth;
+      const centerIndex = currentIndex + VISIBLE_ITEMS;
+      const translateX = containerWidth / 2 - ((centerIndex * ITEM_WIDTH) + (ITEM_WIDTH / 2));
+
+      track.style.transform = `translateX(${translateX}px)`;
+    }
+
+    function slide(direction = 'next') {
+      const len = airingAnime.length;
+
+      if (direction === 'next') {
+        currentIndex++;
+        if (currentIndex >= len) {
+          currentIndex = 0;
+          updatePosition(false);
+          void track.offsetWidth;
+        }
+      } else {
+        currentIndex--;
+        if (currentIndex < 0) {
+          currentIndex = len - 1;
+          updatePosition(false);
+          void track.offsetWidth;
+        }
+      }
+
+      updatePosition();
+      updateCenterClasses();
+    }
+
+    function updateBackgroundImage(url) {
+      const bg = document.getElementById('bg-blur');
+      bg.style.backgroundImage = `url(${url})`;
+    }
+
+    function updateCenterClasses() {
+      const items = track.children;
+      const centerIndex = currentIndex + VISIBLE_ITEMS;
+
+      for (let i = 0; i < items.length; i++) {
+        if (i === centerIndex) {
+          items[i].classList.add('center');
+          items[i].style.opacity = '1';
+          items[i].style.transform = 'scale(1)';
+          const img = items[i].querySelector('img');
+          if (img) updateBackgroundImage(img.src);
+        } else {
+          items[i].classList.remove('center');
+          items[i].style.opacity = '0.6';
+          items[i].style.transform = 'scale(0.85)';
+        }
+      }
+    }
+
+    async function init() {
+      airingAnime = await fetchAiringAnime();
+
+      if (airingAnime.length < 5) {
+        const copy = [...airingAnime];
+        while (airingAnime.length < 10) {
+          airingAnime = airingAnime.concat(copy);
+        }
+      }
+
+      currentIndex = 0;
+      renderCarousel();
+      updateCenterClasses();
+      setInterval(() => slide('next'), 10000);
+    }
+
+    window.addEventListener('resize', () => updatePosition(false));
+
+    init();
+  </script>
+</body>
+</html>
