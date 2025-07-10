@@ -7,3 +7,5 @@ This is primarly made for wallpaper engine but it is html.<br>
 # First version 0.0.1
 I am not a coder. This is not guaranteed to continue.
 [0.0.1](anischedule.html)
+# LICENSE
+[LICENSE](LICENSE.MD)
